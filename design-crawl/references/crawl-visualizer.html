@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Design crawl — review</title>
+<style>
+  :root {
+    --bg:#f7f7f8; --card:#fff; --ink:#18181b; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#16a085; --keep:#16a085; --redesign:#e0533d; --unsure:#b7791f;
+    --blocker:#dc2626; --high:#ea580c; --medium:#ca8a04; --low:#6b7280; --note:#9ca3af;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f0f11; --card:#1a1a1e; --ink:#e7e7ea; --muted:#9ca3af; --line:#2a2a30; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         background:var(--bg); color:var(--ink); }
+  header { position:sticky; top:0; z-index:5; background:var(--card); border-bottom:1px solid var(--line);
+           padding:12px 20px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:15px; margin:0; font-weight:650; }
+  header .sub { color:var(--muted); font-size:12px; }
+  header .spacer { flex:1; }
+  .progress { font-variant-numeric:tabular-nums; color:var(--muted); font-size:12px; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card);
+           color:var(--ink); border-radius:7px; padding:6px 12px; transition:filter .1s, transform .05s; }
+  button:hover { filter:brightness(.97); } button:active { transform:scale(.97); }
+  button.primary { background:var(--accent); color:#fff; border-color:transparent; }
+  main { padding:20px; max-width:1100px; margin:0 auto; }
+  .flow { margin-bottom:32px; }
+  .flow > h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+               border-bottom:1px solid var(--line); padding-bottom:6px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
+  .screen { background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden;
+            display:flex; flex-direction:column; }
+  .screen.done { border-color:var(--accent); }
+  .shot { background:#00000010; max-height:280px; overflow:auto; }
+  .shot img { width:100%; display:block; }
+  .meta { padding:10px 12px; }
+  .meta .job { font-weight:600; }
+  .meta .tags { color:var(--muted); font-size:12px; margin-top:2px; }
+  .sev { display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+         padding:1px 6px; border-radius:4px; color:#fff; margin-left:6px; }
+  ul.obs { margin:8px 0 0; padding-left:16px; font-size:12.5px; color:var(--ink); }
+  ul.obs:empty::after { content:"No observations — looks clean."; color:var(--muted); font-style:italic; }
+  .controls { border-top:1px solid var(--line); padding:10px 12px; margin-top:auto; }
+  .verdicts { display:flex; gap:6px; }
+  .verdicts label { flex:1; text-align:center; font-size:12px; padding:5px 0; border:1px solid var(--line);
+                    border-radius:6px; cursor:pointer; user-select:none; }
+  .verdicts input { display:none; }
+  .verdicts input:checked + span { font-weight:700; }
+  label.keep input:checked ~ span { color:var(--keep); }
+  label.redesign input:checked ~ span { color:var(--redesign); }
+  label.unsure input:checked ~ span { color:var(--unsure); }
+  .verdicts label:has(input:checked) { border-width:2px; padding:4px 0; }
+  label.keep:has(input:checked) { border-color:var(--keep); }
+  label.redesign:has(input:checked) { border-color:var(--redesign); }
+  label.unsure:has(input:checked) { border-color:var(--unsure); }
+  textarea { width:100%; margin-top:8px; border:1px solid var(--line); border-radius:6px; background:var(--bg);
+             color:var(--ink); padding:6px 8px; font:inherit; resize:vertical; min-height:38px; }
+  dialog { border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink);
+           max-width:760px; width:92%; padding:0; }
+  dialog::backdrop { background:#0008; }
+  dialog .dhead { display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); }
+  dialog h3 { margin:0; font-size:14px; flex:1; }
+  dialog pre { margin:0; padding:16px 18px; white-space:pre-wrap; word-break:break-word; font:12.5px/1.55
+               ui-monospace,SFMono-Regular,Menlo,monospace; max-height:60vh; overflow:auto; }
+  .filters { display:flex; gap:6px; align-items:center; font-size:12px; color:var(--muted); }
+  select { font:inherit; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); padding:4px 6px; }
+</style>
+</head>
+<body>
+<header>
+  <div><h1 id="title">Design crawl</h1><div class="sub" id="subtitle"></div></div>
+  <div class="spacer"></div>
+  <div class="filters">
+    <label>show <select id="filter">
+      <option value="all">all screens</option>
+      <option value="flagged">with observations</option>
+      <option value="unreviewed">not yet reviewed</option>
+      <option value="redesign">marked redesign</option>
+    </select></label>
+  </div>
+  <div class="progress" id="progress"></div>
+  <button id="downloadBtn">Download feedback.json</button>
+  <button class="primary" id="promptBtn">Generate Claude Design prompt</button>
+</header>
+<main id="main"></main>
+
+<dialog id="promptDlg">
+  <div class="dhead">
+    <h3>Claude Design prompt</h3>
+    <button id="copyBtn">Copy</button>
+    <button onclick="promptDlg.close()">Close</button>
+  </div>
+  <pre id="promptText"></pre>
+</dialog>
+
+<script>
+const MANIFEST = /*__MANIFEST__*/ {};
+const KEY = "design-crawl:" + (MANIFEST.app || "app") + ":" + (MANIFEST.captured || "");
+const state = JSON.parse(localStorage.getItem(KEY) || "{}"); // { file: {verdict, note} }
+const SEV = { blocker:"--blocker", high:"--high", medium:"--medium", low:"--low", note:"--note" };
+
+const $ = (s, r=document) => r.querySelector(s);
+const el = (t, props={}, kids=[]) => { const n=document.createElement(t); Object.assign(n, props);
+  for (const [k,v] of Object.entries(props.dataset||{})) n.dataset[k]=v;
+  (Array.isArray(kids)?kids:[kids]).forEach(k=>k!=null&&n.append(k)); return n; };
+
+function save(){ localStorage.setItem(KEY, JSON.stringify(state)); renderProgress(); }
+
+function renderProgress(){
+  const total = MANIFEST.screens.length;
+  const done = MANIFEST.screens.filter(s => state[s.file]?.verdict).length;
+  $("#progress").textContent = `${done} / ${total} reviewed`;
+}
+
+function screenCard(s){
+  const st = state[s.file] || {};
+  const card = el("div", { className:"screen" + (st.verdict?" done":"") });
+  const shot = el("div", { className:"shot" }, el("img", { src:s.file, loading:"lazy", alt:s.job||s.file }));
+  const sevBadge = s.severity ? el("span", { className:"sev", textContent:s.severity,
+        style:`background:var(${SEV[s.severity]||"--note"})` }) : null;
+  const meta = el("div", { className:"meta" }, [
+    el("div", { className:"job" }, [document.createTextNode(s.job || s.step || s.file), sevBadge].filter(Boolean)),
+    el("div", { className:"tags", textContent:[s.flow, s.viewport, s.surface].filter(Boolean).join(" · ") }),
+    (()=>{ const ul=el("ul",{className:"obs"}); (s.observations||[]).forEach(o=>ul.append(el("li",{textContent:o}))); return ul; })()
+  ]);
+  const controls = el("div", { className:"controls" });
+  const verdicts = el("div", { className:"verdicts" });
+  [["keep","Keep"],["redesign","Redesign"],["unsure","Not sure"]].forEach(([v,label])=>{
+    const inp = el("input", { type:"radio", name:"v-"+s.file, value:v, checked:st.verdict===v });
+    inp.onchange = () => { state[s.file] = { ...(state[s.file]||{}), verdict:v }; card.classList.add("done"); save(); };
+    verdicts.append(el("label", { className:v }, [inp, el("span",{textContent:label})]));
+  });
+  const note = el("textarea", { placeholder:"Design direction (optional) — what should change, or why keep it", value:st.note||"" });
+  note.oninput = () => { state[s.file] = { ...(state[s.file]||{}), note:note.value }; localStorage.setItem(KEY, JSON.stringify(state)); };
+  controls.append(verdicts, note);
+  card.append(shot, meta, controls);
+  card.dataset.file = s.file; card.dataset.flagged = (s.observations||[]).length ? "1":"0";
+  return card;
+}
+
+function render(){
+  $("#title").textContent = (MANIFEST.app||"Design crawl") + " — review";
+  $("#subtitle").textContent = [MANIFEST.url, MANIFEST.captured, (MANIFEST.flows||[]).join(", ")].filter(Boolean).join("  ·  ");
+  const main = $("#main"); main.innerHTML = "";
+  const filter = $("#filter").value;
+  const groups = {};
+  MANIFEST.screens.forEach(s => { (groups[s.flow||"other"] ||= []).push(s); });
+  for (const [flow, screens] of Object.entries(groups)){
+    const vis = screens.filter(s => {
+      const st = state[s.file]||{};
+      if (filter==="flagged") return (s.observations||[]).length;
+      if (filter==="unreviewed") return !st.verdict;
+      if (filter==="redesign") return st.verdict==="redesign";
+      return true;
+    });
+    if (!vis.length) continue;
+    const grid = el("div",{className:"grid"}); vis.forEach(s=>grid.append(screenCard(s)));
+    main.append(el("div",{className:"flow"},[el("h2",{textContent:flow}), grid]));
+  }
+  renderProgress();
+}
+$("#filter").onchange = render;
+
+// ---- Claude Design prompt generation ----
+function buildPrompt(){
+  const inc = (MANIFEST.inconsistencies||[]).map(i => `  — [${i.severity||"note"}] ${i.summary}`).join("\n") || "  (none clustered)";
+  const fb = MANIFEST.screens.filter(s => state[s.file]?.verdict)
+    .map(s => { const st=state[s.file]; const note = st.note?.trim() ? ` — "${st.note.trim()}"` : "";
+      return `  — ${s.file} — ${st.verdict.toUpperCase()}${note}`; }).join("\n") || "  (no screens marked yet — mark Keep/Redesign above)";
+  const flows = (MANIFEST.flows||[]).join(", ");
+  const vps = Object.values(MANIFEST.viewports||{}).join(" and ");
+  return `I'm redesigning parts of ${MANIFEST.app} (${MANIFEST.url}). I ran a design crawl — screenshots of every screen across ${flows} at ${vps} — and reviewed each one. This is an exploration, not a spec: I want you to design the fix, not confirm mine.
+
+WHAT THE CRAWL FOUND (surfaced from the screens, ranked by user impact):
+${inc}
+
+MY DIRECTION, PER SCREEN (Keep = leave it, Redesign = change it):
+${fb}
+
+CONSTRAINTS (respect these; ask if any block you):
+  — Stay within the existing design system / component library.
+  — Mobile-first; every control reachable at the smallest viewport.
+  — Don't introduce new dependencies.
+
+WHAT I WANT BACK:
+1. For each REDESIGN screen: a concrete proposal — layout, states, interaction — with a short rationale tied to what the crawl showed.
+2. Where several screens share one underlying inconsistency, one coherent rule that resolves all of them, not per-screen patches.
+3. Call out any tradeoff rather than silently picking.
+4. Leave KEEP screens alone unless a change is load-bearing for a fix — and say why.
+
+Attached: the crawl screenshots and manifest.json. Work from the actual screens.`;
+}
+$("#promptBtn").onclick = () => { $("#promptText").textContent = buildPrompt(); $("#promptDlg").showModal(); };
+$("#copyBtn").onclick = async () => { try { await navigator.clipboard.writeText($("#promptText").textContent);
+  $("#copyBtn").textContent = "Copied"; setTimeout(()=>$("#copyBtn").textContent="Copy", 1500); } catch {} };
+$("#downloadBtn").onclick = () => {
+  const out = { app:MANIFEST.app, captured:MANIFEST.captured, feedback:state };
+  const blob = new Blob([JSON.stringify(out,null,2)], {type:"application/json"});
+  const a = el("a",{href:URL.createObjectURL(blob), download:"design-crawl-feedback.json"}); a.click();
+};
+
+render();
+</script>
+</body>
+</html>
